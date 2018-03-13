@@ -16,8 +16,16 @@
 
 package be.vlaanderen.eib.webidm;
 
+import java.lang.reflect.Array;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
+
 import org.identityconnectors.common.logging.Log;
+import org.identityconnectors.framework.common.objects.AttributeBuilder;
+import org.identityconnectors.framework.common.objects.AttributeInfo;
 import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
+import org.identityconnectors.framework.common.objects.ConnectorObjectBuilder;
 import org.identityconnectors.framework.common.objects.ObjectClass;
 import org.identityconnectors.framework.common.objects.ObjectClassInfo;
 import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
@@ -25,6 +33,7 @@ import org.identityconnectors.framework.common.objects.OperationOptions;
 import org.identityconnectors.framework.common.objects.ResultsHandler;
 import org.identityconnectors.framework.common.objects.Schema;
 import org.identityconnectors.framework.common.objects.SchemaBuilder;
+import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.identityconnectors.framework.common.objects.filter.FilterTranslator;
 import org.identityconnectors.framework.spi.Configuration;
 import org.identityconnectors.framework.spi.Connector;
@@ -33,10 +42,11 @@ import org.identityconnectors.framework.spi.operations.SchemaOp;
 import org.identityconnectors.framework.spi.operations.SearchOp;
 import org.identityconnectors.framework.spi.operations.TestOp;
 
+import be.vlaanderen.eib.webidm.query.WebIDMFilterTranslator;
 import be.vlaanderen.eib.webidm.query.WebIDMQuery;
 
 @ConnectorClass(displayNameKey = "webidm.connector.display", configurationClass = WebIDMConfiguration.class)
-public class WebIDMConnector implements Connector, SchemaOp, SearchOp<WebIDMQuery>, TestOp {
+public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, TestOp {
 
     private static final Log LOG = Log.getLog(WebIDMConnector.class);
 
@@ -68,18 +78,36 @@ public class WebIDMConnector implements Connector, SchemaOp, SearchOp<WebIDMQuer
     }
 
 	@Override
-	public FilterTranslator<WebIDMQuery> createFilterTranslator(ObjectClass objectClass, OperationOptions options) {
+	public FilterTranslator<Filter> createFilterTranslator(ObjectClass objectClass, OperationOptions options) {
 		
 		LOG.info("Filter translator maken");
 		
-		return null;
+		return new WebIDMFilterTranslator();
 	}
-
+	
 	@Override
-	public void executeQuery(ObjectClass objectClass, WebIDMQuery query, ResultsHandler handler,
-								OperationOptions options) {
+	public void executeQuery(ObjectClass objectClass, Filter query, ResultsHandler handler, OperationOptions options) {
 		
-		LOG.info("Query uitvoeren");
+		LOG.info("Filter translator maken");
+		
+		if (ObjectClass.ACCOUNT.is(objectClass.getObjectClassValue())) {
+			
+			ConnectorObjectBuilder coBuilder = new ConnectorObjectBuilder();
+			coBuilder.setObjectClass(objectClass);
+			coBuilder.setUid("dc797290-703a-41d3-b4bb-6b3aa4cd5291");
+			coBuilder.setName("test");
+			
+			AttributeBuilder attributeBuilder = new AttributeBuilder();
+			attributeBuilder.setName("idd_cn");
+			attributeBuilder.addValue("Hermans, Erwin");
+			coBuilder.addAttribute(attributeBuilder.build());
+			attributeBuilder = new AttributeBuilder();
+			attributeBuilder.setName("idd_dn");
+			attributeBuilder.addValue("vo-idv=dc797290-703a-41d3-b4bb-6b3aa4cd5291,ou=gid,dc=vlaanderen,dc=be");
+			coBuilder.addAttribute(attributeBuilder.build());
+			
+			handler.handle(coBuilder.build());
+		}
 	}
 
 	@Override
@@ -97,17 +125,38 @@ public class WebIDMConnector implements Connector, SchemaOp, SearchOp<WebIDMQuer
 		
 		ObjectClassInfoBuilder objClassBuilder = new ObjectClassInfoBuilder();
 		objClassBuilder.setType("__ACCOUNT__");
+		objClassBuilder.addAllAttributeInfo(maakAttributenInfo());
+		
+		return objClassBuilder.build();
+	}
+	
+	private Collection<AttributeInfo> maakAttributenInfo() {
+		
+		Set<AttributeInfo> attributenInfo = new HashSet<>();
 		
 		AttributeInfoBuilder aib = new AttributeInfoBuilder();
-		aib.setName("vo-id");
+		aib.setName("idd_cn");
 		aib.setType(String.class);
 		aib.setMultiValued(false);
 		aib.setReadable(true);
 		aib.setReturnedByDefault(true);
+		attributenInfo.add(aib.build());
+		aib = new AttributeInfoBuilder();
+		aib.setName("idd_dn");
+		aib.setType(String.class);
+		aib.setMultiValued(false);
+		aib.setReadable(true);
+		aib.setReturnedByDefault(true);
+		attributenInfo.add(aib.build());
+		aib = new AttributeInfoBuilder();
+		aib.setName("idd_federatie-applicatie12-autorisatiedata");
+		aib.setType(String.class);
+		aib.setMultiValued(true);
+		aib.setReadable(true);
+		aib.setReturnedByDefault(true);
+		attributenInfo.add(aib.build());
 		
-		objClassBuilder.addAttributeInfo(aib.build());
-		
-		return objClassBuilder.build();
+		return attributenInfo;
 	}
 
 	@Override
@@ -115,4 +164,5 @@ public class WebIDMConnector implements Connector, SchemaOp, SearchOp<WebIDMQuer
 		
 		LOG.info("Test connector");
 	}
+
 }
