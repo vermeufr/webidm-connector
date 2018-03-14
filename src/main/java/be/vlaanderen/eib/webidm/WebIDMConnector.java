@@ -16,16 +16,15 @@
 
 package be.vlaanderen.eib.webidm;
 
-import java.lang.reflect.Array;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
 import org.identityconnectors.common.logging.Log;
-import org.identityconnectors.framework.api.operations.SyncApiOp;
 import org.identityconnectors.framework.common.objects.AttributeBuilder;
 import org.identityconnectors.framework.common.objects.AttributeInfo;
 import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
+import org.identityconnectors.framework.common.objects.ConnectorObject;
 import org.identityconnectors.framework.common.objects.ConnectorObjectBuilder;
 import org.identityconnectors.framework.common.objects.ObjectClass;
 import org.identityconnectors.framework.common.objects.ObjectClassInfo;
@@ -34,8 +33,11 @@ import org.identityconnectors.framework.common.objects.OperationOptions;
 import org.identityconnectors.framework.common.objects.ResultsHandler;
 import org.identityconnectors.framework.common.objects.Schema;
 import org.identityconnectors.framework.common.objects.SchemaBuilder;
+import org.identityconnectors.framework.common.objects.SyncDeltaBuilder;
+import org.identityconnectors.framework.common.objects.SyncDeltaType;
 import org.identityconnectors.framework.common.objects.SyncResultsHandler;
 import org.identityconnectors.framework.common.objects.SyncToken;
+import org.identityconnectors.framework.common.objects.Uid;
 import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.identityconnectors.framework.common.objects.filter.FilterTranslator;
 import org.identityconnectors.framework.spi.Configuration;
@@ -47,7 +49,6 @@ import org.identityconnectors.framework.spi.operations.SyncOp;
 import org.identityconnectors.framework.spi.operations.TestOp;
 
 import be.vlaanderen.eib.webidm.query.WebIDMFilterTranslator;
-import be.vlaanderen.eib.webidm.query.WebIDMQuery;
 
 @ConnectorClass(displayNameKey = "webidm.connector.display", configurationClass = WebIDMConfiguration.class)
 public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, SyncOp, TestOp {
@@ -95,23 +96,32 @@ public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, S
 		LOG.info("Filter translator maken");
 		
 		if (ObjectClass.ACCOUNT.is(objectClass.getObjectClassValue())) {
-			
-			ConnectorObjectBuilder coBuilder = new ConnectorObjectBuilder();
-			coBuilder.setObjectClass(objectClass);
-			coBuilder.setUid("dc797290-703a-41d3-b4bb-6b3aa4cd5291");
-			coBuilder.setName("test");
-			
-			AttributeBuilder attributeBuilder = new AttributeBuilder();
-			attributeBuilder.setName("idd_cn");
-			attributeBuilder.addValue("Hermans, Erwin");
-			coBuilder.addAttribute(attributeBuilder.build());
-			attributeBuilder = new AttributeBuilder();
-			attributeBuilder.setName("idd_dn");
-			attributeBuilder.addValue("vo-idv=dc797290-703a-41d3-b4bb-6b3aa4cd5291,ou=gid,dc=vlaanderen,dc=be");
-			coBuilder.addAttribute(attributeBuilder.build());
-			
-			handler.handle(coBuilder.build());
+
+			handler.handle(maakIDDObject(objectClass));
 		}
+	}
+	
+	private ConnectorObject maakIDDObject(ObjectClass objectClass) {
+		
+		ConnectorObjectBuilder coBuilder = new ConnectorObjectBuilder();
+		coBuilder.setObjectClass(objectClass);
+		coBuilder.setUid("dc797290-703a-41d3-b4bb-6b3aa4cd5291");
+		coBuilder.setName("test");
+		
+		AttributeBuilder attributeBuilder = new AttributeBuilder();
+		attributeBuilder.setName("idd_cn");
+		attributeBuilder.addValue("Hermans, Erwin");
+		coBuilder.addAttribute(attributeBuilder.build());
+		attributeBuilder = new AttributeBuilder();
+		attributeBuilder.setName("idd_dn");
+		attributeBuilder.addValue("vo-idv=dc797290-703a-41d3-b4bb-6b3aa4cd5291,ou=gid,dc=vlaanderen,dc=be");
+		coBuilder.addAttribute(attributeBuilder.build());
+		attributeBuilder = new AttributeBuilder();
+		attributeBuilder.setName("idd_federatie-applicatie12-autorisatiedata");
+		attributeBuilder.addValue("VO-RA");
+		coBuilder.addAttribute(attributeBuilder.build());
+		
+		return coBuilder.build();
 	}
 
 	@Override
@@ -173,6 +183,15 @@ public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, S
 	public void sync(ObjectClass objectClass, SyncToken token, SyncResultsHandler handler, OperationOptions options) {
 		
 		LOG.info("Live sync");
+		
+		SyncDeltaBuilder deltaBuilder =  new SyncDeltaBuilder();
+		deltaBuilder.setObjectClass(ObjectClass.ACCOUNT);
+		deltaBuilder.setDeltaType(SyncDeltaType.CREATE_OR_UPDATE);
+		deltaBuilder.setObject(maakIDDObject(objectClass));
+		deltaBuilder.setUid(new Uid("dc797290-703a-41d3-b4bb-6b3aa4cd5291"));
+		deltaBuilder.setToken(new SyncToken(1));
+		
+		handler.handle(deltaBuilder.build());
 	}
 
 	@Override
