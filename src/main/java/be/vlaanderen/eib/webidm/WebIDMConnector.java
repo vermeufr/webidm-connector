@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.identityconnectors.common.logging.Log;
+import org.identityconnectors.framework.api.operations.SyncApiOp;
 import org.identityconnectors.framework.common.objects.AttributeBuilder;
 import org.identityconnectors.framework.common.objects.AttributeInfo;
 import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
@@ -33,6 +34,8 @@ import org.identityconnectors.framework.common.objects.OperationOptions;
 import org.identityconnectors.framework.common.objects.ResultsHandler;
 import org.identityconnectors.framework.common.objects.Schema;
 import org.identityconnectors.framework.common.objects.SchemaBuilder;
+import org.identityconnectors.framework.common.objects.SyncResultsHandler;
+import org.identityconnectors.framework.common.objects.SyncToken;
 import org.identityconnectors.framework.common.objects.filter.Filter;
 import org.identityconnectors.framework.common.objects.filter.FilterTranslator;
 import org.identityconnectors.framework.spi.Configuration;
@@ -40,13 +43,14 @@ import org.identityconnectors.framework.spi.Connector;
 import org.identityconnectors.framework.spi.ConnectorClass;
 import org.identityconnectors.framework.spi.operations.SchemaOp;
 import org.identityconnectors.framework.spi.operations.SearchOp;
+import org.identityconnectors.framework.spi.operations.SyncOp;
 import org.identityconnectors.framework.spi.operations.TestOp;
 
 import be.vlaanderen.eib.webidm.query.WebIDMFilterTranslator;
 import be.vlaanderen.eib.webidm.query.WebIDMQuery;
 
 @ConnectorClass(displayNameKey = "webidm.connector.display", configurationClass = WebIDMConfiguration.class)
-public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, TestOp {
+public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, SyncOp, TestOp {
 
     private static final Log LOG = Log.getLog(WebIDMConnector.class);
 
@@ -163,6 +167,20 @@ public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, T
 	public void test() {
 		
 		LOG.info("Test connector");
+	}
+
+	@Override
+	public void sync(ObjectClass objectClass, SyncToken token, SyncResultsHandler handler, OperationOptions options) {
+		
+		LOG.info("Live sync");
+	}
+
+	@Override
+	public SyncToken getLatestSyncToken(ObjectClass objectClass) {
+		
+		LOG.info("Geef laatste sync token");
+		
+		return null;
 	}
 
 }
