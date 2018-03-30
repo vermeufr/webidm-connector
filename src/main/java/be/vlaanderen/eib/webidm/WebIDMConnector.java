@@ -16,8 +16,10 @@
 
 package be.vlaanderen.eib.webidm;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import org.identityconnectors.common.logging.Log;
@@ -43,6 +45,7 @@ import org.identityconnectors.framework.common.objects.filter.FilterTranslator;
 import org.identityconnectors.framework.spi.Configuration;
 import org.identityconnectors.framework.spi.Connector;
 import org.identityconnectors.framework.spi.ConnectorClass;
+import org.identityconnectors.framework.spi.operations.DeleteOp;
 import org.identityconnectors.framework.spi.operations.SchemaOp;
 import org.identityconnectors.framework.spi.operations.SearchOp;
 import org.identityconnectors.framework.spi.operations.SyncOp;
@@ -51,12 +54,13 @@ import org.identityconnectors.framework.spi.operations.TestOp;
 import be.vlaanderen.eib.webidm.query.WebIDMFilterTranslator;
 
 @ConnectorClass(displayNameKey = "webidm.connector.display", configurationClass = WebIDMConfiguration.class)
-public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, SyncOp, TestOp {
+public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, SyncOp, DeleteOp, TestOp {
 
     private static final Log LOG = Log.getLog(WebIDMConnector.class);
 
     private WebIDMConfiguration configuration;
     private WebIDMConnection connection;
+    private static Integer vorigeTokenWaarde;
 
     @Override
     public Configuration getConfiguration() {
@@ -97,31 +101,43 @@ public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, S
 		
 		if (ObjectClass.ACCOUNT.is(objectClass.getObjectClassValue())) {
 
-			handler.handle(maakIDDObject(objectClass));
+			for (ConnectorObject connObject : maakIDDObject(objectClass, 10, false)) {
+				handler.handle(connObject);
+			}
 		}
 	}
 	
-	private ConnectorObject maakIDDObject(ObjectClass objectClass) {
+	private List<ConnectorObject> maakIDDObject(ObjectClass objectClass, int aantal, boolean wijzigen) {
 		
-		ConnectorObjectBuilder coBuilder = new ConnectorObjectBuilder();
-		coBuilder.setObjectClass(objectClass);
-		coBuilder.setUid("dc797290-703a-41d3-b4bb-6b3aa4cd5291");
-		coBuilder.setName("test");
+		List<ConnectorObject> objecten = new ArrayList<>();
+		int aantalTeMaken = 0;
+		while (aantalTeMaken < aantal) {
+			ConnectorObjectBuilder coBuilder = new ConnectorObjectBuilder();
+			coBuilder.setObjectClass(objectClass);
+			coBuilder.setUid("dc797290-703a-41d3-b4bb-6b3aa4cd5291" + "-" + (aantalTeMaken+1));
+			coBuilder.setName("TestVI" + "-" + (aantalTeMaken+1));
+			
+			AttributeBuilder attributeBuilder = new AttributeBuilder();
+			attributeBuilder.setName("idd_cn");
+			attributeBuilder.addValue("Dierckx, Erwin" + "-" + (aantalTeMaken+1));
+			coBuilder.addAttribute(attributeBuilder.build());
+			attributeBuilder = new AttributeBuilder();
+			attributeBuilder.setName("idd_dn");
+			if (!wijzigen) {
+				attributeBuilder.addValue("vo-idv=dc797290-703a-41d3-b4bb-6b3aa4cd5291,ou=gid,dc=vlaanderen,dc=be");
+			} else {
+				attributeBuilder.addValue("vo-idv=Dierckx,ou=gid,dc=vlaanderen,dc=be");
+			}
+			coBuilder.addAttribute(attributeBuilder.build());
+			attributeBuilder = new AttributeBuilder();
+			attributeBuilder.setName("idd_federatie-applicatie12-autorisatiedata");
+			attributeBuilder.addValue("VO-RA");
+			coBuilder.addAttribute(attributeBuilder.build());
+			objecten.add(coBuilder.build());
+			++aantalTeMaken;
+		}
 		
-		AttributeBuilder attributeBuilder = new AttributeBuilder();
-		attributeBuilder.setName("idd_cn");
-		attributeBuilder.addValue("Hermans, Erwin");
-		coBuilder.addAttribute(attributeBuilder.build());
-		attributeBuilder = new AttributeBuilder();
-		attributeBuilder.setName("idd_dn");
-		attributeBuilder.addValue("vo-idv=dc797290-703a-41d3-b4bb-6b3aa4cd5291,ou=gid,dc=vlaanderen,dc=be");
-		coBuilder.addAttribute(attributeBuilder.build());
-		attributeBuilder = new AttributeBuilder();
-		attributeBuilder.setName("idd_federatie-applicatie12-autorisatiedata");
-		attributeBuilder.addValue("VO-RA");
-		coBuilder.addAttribute(attributeBuilder.build());
-		
-		return coBuilder.build();
+		return objecten;
 	}
 
 	@Override
@@ -183,23 +199,69 @@ public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, S
 	public void sync(ObjectClass objectClass, SyncToken token, SyncResultsHandler handler, OperationOptions options) {
 		
 		LOG.info("Live sync");
+		int aantal = 1;
+		int maxAantal = 10;
+		SyncDeltaType operatie = bepaalDeltaType(token);
+		boolean wijzigen = operatie == SyncDeltaType.UPDATE;
+		for (ConnectorObject connObject : maakIDDObject(objectClass, maxAantal, wijzigen)) {
+			SyncDeltaBuilder deltaBuilder =  new SyncDeltaBuilder();
+			deltaBuilder.setObjectClass(ObjectClass.ACCOUNT);
+			deltaBuilder.setDeltaType(operatie);
+			deltaBuilder.setObject(connObject);
+			deltaBuilder.setUid(new Uid("dc797290-703a-41d3-b4bb-6b3aa4cd5291" + "-" + aantal));
+			deltaBuilder.setToken(token);
+			handler.handle(deltaBuilder.build());
+			++aantal;
+			if (aantal > maxAantal) {
+				break;
+			}
+		}
 		
-		SyncDeltaBuilder deltaBuilder =  new SyncDeltaBuilder();
-		deltaBuilder.setObjectClass(ObjectClass.ACCOUNT);
-		deltaBuilder.setDeltaType(SyncDeltaType.CREATE_OR_UPDATE);
-		deltaBuilder.setObject(maakIDDObject(objectClass));
-		deltaBuilder.setUid(new Uid("dc797290-703a-41d3-b4bb-6b3aa4cd5291"));
-		deltaBuilder.setToken(new SyncToken(1));
-		
-		handler.handle(deltaBuilder.build());
 	}
-
+	
+	private SyncDeltaType bepaalDeltaType(SyncToken token) {
+		
+		Integer waarde = (Integer) token.getValue();
+		switch(waarde) {
+		
+			case 1:
+				{
+					return SyncDeltaType.CREATE;
+				}
+			case 2:
+				{
+					return SyncDeltaType.UPDATE;
+				}
+				
+			case 3:
+				{
+					return SyncDeltaType.DELETE;
+				}
+			default:
+			{
+				return SyncDeltaType.CREATE;
+			}
+		}
+	}
+	
 	@Override
 	public SyncToken getLatestSyncToken(ObjectClass objectClass) {
 		
 		LOG.info("Geef laatste sync token");
+		if (vorigeTokenWaarde == null || vorigeTokenWaarde.equals(3)) {
+			vorigeTokenWaarde = new Integer("1");
+		} else {
+			++vorigeTokenWaarde;
+		}
 		
-		return null;
+		
+		return new SyncToken(vorigeTokenWaarde);
+	}
+
+	@Override
+	public void delete(ObjectClass objectClass, Uid uid, OperationOptions options) {
+		
+		LOG.info("Delete account");
 	}
 
 }
