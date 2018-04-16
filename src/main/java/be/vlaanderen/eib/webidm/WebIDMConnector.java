@@ -31,7 +31,6 @@ import org.identityconnectors.framework.common.objects.AttributeInfo;
 import org.identityconnectors.framework.common.objects.AttributeInfoBuilder;
 import org.identityconnectors.framework.common.objects.ConnectorObject;
 import org.identityconnectors.framework.common.objects.ConnectorObjectBuilder;
-import org.identityconnectors.framework.common.objects.Name;
 import org.identityconnectors.framework.common.objects.ObjectClass;
 import org.identityconnectors.framework.common.objects.ObjectClassInfo;
 import org.identityconnectors.framework.common.objects.ObjectClassInfoBuilder;
@@ -224,6 +223,9 @@ public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, S
 	public void sync(ObjectClass objectClass, SyncToken token, SyncResultsHandler handler, OperationOptions options) {
 		
 		LOG.info("Live sync");
+		
+		connection.haalViewsOp();
+		
 		int aantal = 1;
 		SyncDeltaType operatie = bepaalDeltaType(token);
 		boolean wijzigen = operatie == SyncDeltaType.UPDATE;

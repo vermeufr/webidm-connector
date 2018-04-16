@@ -41,6 +41,7 @@
             <scope>runtime</scope>
             <excludes>
                 <exclude>net.tirasa.connid:connector-framework</exclude>
+                <exclude>org.slf4j:slf4j-api</exclude>
             </excludes>
         </dependencySet>
     </dependencySets>
