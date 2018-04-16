@@ -42,6 +42,7 @@
             <excludes>
                 <exclude>net.tirasa.connid:connector-framework</exclude>
                 <exclude>org.slf4j:slf4j-api</exclude>
+                <exclude>com.fasterxml.jackson.core:jackson-databind</exclude>
             </excludes>
         </dependencySet>
     </dependencySets>

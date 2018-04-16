@@ -16,6 +16,9 @@
 
 package be.vlaanderen.eib.webidm;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.jms.ConnectionFactory;
 
 import org.apache.activemq.ActiveMQConnectionFactory;
@@ -26,6 +29,9 @@ import org.apache.camel.PollingConsumer;
 import org.apache.camel.component.jms.JmsComponent;
 import org.apache.camel.impl.DefaultCamelContext;
 import org.identityconnectors.common.logging.Log;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class WebIDMConnection {
 
@@ -44,8 +50,10 @@ public class WebIDMConnection {
 		endpoint = context.getEndpoint("activemq:midpoint");
     }
     
-    public void haalViewsOp() {
+    public List<JsonNode> haalViewsOp() {
     	
+    	ObjectMapper jsonMapper = new ObjectMapper();
+    	List<JsonNode> views = new ArrayList<>();
     	Exchange exchange = null;
     	PollingConsumer consumer;
 		try {
@@ -54,12 +62,16 @@ public class WebIDMConnection {
 				exchange = consumer.receive(500);
 				if (exchange != null) {
 					System.out.println("View ontvangen");
+					String jsonBody = exchange.getIn().getBody().toString();
+					views.add(jsonMapper.readTree(jsonBody));
 				}
 			} while (exchange != null);
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		} 
+		
+		return views;
     }
 
     public void dispose() {

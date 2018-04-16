@@ -55,6 +55,8 @@ import org.identityconnectors.framework.spi.operations.SearchOp;
 import org.identityconnectors.framework.spi.operations.SyncOp;
 import org.identityconnectors.framework.spi.operations.TestOp;
 
+import com.fasterxml.jackson.databind.JsonNode;
+
 import be.vlaanderen.eib.webidm.query.WebIDMFilterTranslator;
 
 @ConnectorClass(displayNameKey = "webidm.connector.display", configurationClass = WebIDMConfiguration.class)
@@ -224,7 +226,7 @@ public class WebIDMConnector implements Connector, SchemaOp, SearchOp<Filter>, S
 		
 		LOG.info("Live sync");
 		
-		connection.haalViewsOp();
+		List<JsonNode> teSyncenViews = connection.haalViewsOp();
 		
 		int aantal = 1;
 		SyncDeltaType operatie = bepaalDeltaType(token);
